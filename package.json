@@ -1,0 +1,31 @@
+{
+  "name": "w-data-scheduler",
+  "version": "1.0.0",
+  "main": "dist/w-data-scheduler.umd.js",
+  "dependencies": {
+    "lodash-es": "^4.17.21",
+    "w-syslog": "^1.0.7",
+    "wsemi": "^1.8.20"
+  },
+  "devDependencies": {
+    "w-package-tools": "^1.1.2"
+  },
+  "scripts": {
+    "test": "mocha --parallel --timeout 60000",
+    "deploy": "gh-pages -d docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuda-lyu/w-data-scheduler.git"
+  },
+  "keywords": [
+    "package",
+    "tool",
+    "builder",
+    "download",
+    "data",
+    "nodejs"
+  ],
+  "author": "yuda-lyu(semisphere)",
+  "license": "MIT"
+}
