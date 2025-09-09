@@ -714,12 +714,19 @@ let WDataScheduler = async(opt = {}) => {
             return
         }
 
-        //check
+        //check, itemsAtt第1次執行預期一定有數據, 第n次執行無數據視為非預期被清空須報錯
         if (size(itemsAtt) === 0) {
-            console.log(`invalid data, task canceled`) //無法取得有效數據, 不進行後續動作
+            console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
             srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'no data' })
             return
         }
+
+        // //check, itemsCur第1次執行會無數據, 不能偵測報錯
+        // if (size(itemsCur) === 0) {
+        //     console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
+        //     srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'no data' })
+        //     return
+        // }
 
         // //check
         // if (size(itemsCur) - size(itemsAtt) > 10) {
