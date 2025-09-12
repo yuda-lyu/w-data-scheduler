@@ -301,7 +301,7 @@ describe('timer', function() {
                 w.fsDeleteFolder(fdTaskCpActualSrc)
                 w.fsDeleteFolder(fdTaskCpSrc)
 
-                console.log('ms', ms)
+                // console.log('ms', ms)
                 pmm.resolve(ms)
             }
         }, 1000)

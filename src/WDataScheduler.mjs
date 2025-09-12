@@ -56,8 +56,6 @@ import ot from 'dayjs'
  * @returns {Object} 回傳事件物件，可呼叫函數on監聽change事件，可呼叫函數srlog額外進行事件紀錄
  * @example
  *
- * import fs from 'fs'
- * import _ from 'lodash-es'
  * import w from 'wsemi'
  * import WDataScheduler from './src/WDataScheduler.mjs'
  *
@@ -162,13 +160,13 @@ let WDataScheduler = async(opt = {}) => {
         keyId = `id`
     }
 
-    //fdTagRemove
+    //fdTagRemove, 暫存標記為刪除數據資料夾
     let fdTagRemove = get(opt, 'fdTagRemove')
     if (!isestr(fdTagRemove)) {
         fdTagRemove = './_tagRemove'
     }
 
-    //fdTaskCpActualSrc
+    //fdTaskCpActualSrc, 儲存完整任務狀態資料夾
     let fdTaskCpActualSrc = get(opt, 'fdTaskCpActualSrc')
     if (!isestr(fdTaskCpActualSrc)) {
         fdTaskCpActualSrc = './_taskCpActualSrc'

@@ -89,29 +89,14 @@ describe('once', function() {
             ms.push(msg)
         })
         ev.on('end', () => {
-            // console.log('ms', ms)
+
             w.fsDeleteFolder(fdTagRemove)
             w.fsDeleteFolder(fdTaskCpActualSrc)
             w.fsDeleteFolder(fdTaskCpSrc)
+
+            // console.log('ms', ms)
             pm.resolve(ms)
         })
-        // change { event: 'start', msg: 'running...' }
-        // change { event: 'proc-callfun-getNew', msg: 'start...' }
-        // change { event: 'proc-callfun-getNew', num: 1, msg: 'done' }
-        // change { event: 'proc-callfun-getCurrent', msg: 'start...' }
-        // change { event: 'proc-callfun-getCurrent', num: 2, msg: 'done' }
-        // change { event: 'compare', msg: 'start...' }
-        // change {
-        //   event: 'compare',
-        //   numRemove: 1,
-        //   numAdd: 0,
-        //   numModify: 0,
-        //   numSame: 1,
-        //   msg: 'done'
-        // }
-        // change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
-        // change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'done' }
-        // change { event: 'end', msg: 'done' }
 
         return pm
     }

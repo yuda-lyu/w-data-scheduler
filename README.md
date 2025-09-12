@@ -20,8 +20,6 @@ npm i w-data-scheduler
 #### Example:
 > **Link:** [[dev source code](https://github.com/yuda-lyu/w-data-scheduler/blob/master/g.mjs)]
 ```alias
-import fs from 'fs'
-import _ from 'lodash-es'
 import w from 'wsemi'
 import WDataScheduler from './src/WDataScheduler.mjs'
 
