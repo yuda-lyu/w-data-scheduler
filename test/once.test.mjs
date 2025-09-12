@@ -88,7 +88,7 @@ describe('once', function() {
             // console.log('change', msg)
             ms.push(msg)
         })
-        ev.on('end', (msg) => {
+        ev.on('end', () => {
             // console.log('ms', ms)
             w.fsDeleteFolder(fdTagRemove)
             w.fsDeleteFolder(fdTaskCpActualSrc)

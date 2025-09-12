@@ -1,5 +1,5 @@
 # w-data-scheduler
-A builder for download data.
+A scheduler for data.
 
 ![language](https://img.shields.io/badge/language-JavaScript-orange.svg) 
 [![npm version](http://img.shields.io/npm/v/w-data-scheduler.svg?style=flat)](https://npmjs.org/package/w-data-scheduler) 
