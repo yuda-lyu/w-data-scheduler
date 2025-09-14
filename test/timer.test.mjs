@@ -376,7 +376,7 @@ describe('timer', function() {
             stage: '4.remove',
             event: 'proc-remove-callfun-remove',
             id: '114116',
-            msg: 'tag'
+            msg: 'add-tag'
         },
         { stage: '4.remove', event: 'end', msg: 'done' },
         { stage: '5.add', event: 'proc-callfun-getNew', msg: 'start...' },
@@ -392,6 +392,12 @@ describe('timer', function() {
             event: 'proc-add-callfun-add',
             id: '114116',
             msg: 'release-tag'
+        },
+        {
+            stage: '5.add',
+            event: 'proc-add-callfun-add',
+            id: '114116',
+            msg: 'done'
         },
         { stage: '5.add', event: 'end', msg: 'done' },
         { stage: '6.remove', event: 'proc-callfun-getNew', msg: 'start...' },
@@ -411,7 +417,7 @@ describe('timer', function() {
             stage: '6.remove',
             event: 'proc-remove-callfun-remove',
             id: '114116',
-            msg: 'tag'
+            msg: 'add-tag'
         },
         { stage: '6.remove', event: 'end', msg: 'done' },
         { stage: '6.remove', event: 'proc-callfun-getNew', msg: 'start...' },

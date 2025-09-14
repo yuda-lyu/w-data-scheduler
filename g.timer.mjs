@@ -299,41 +299,42 @@ let tt = setInterval(() => {
 // run end
 // n 3 stage[3.modify]
 // running...
+// n 4 stage[3.modify]
 // change { event: 'proc-diff-callfun-modify', id: '114116', msg: 'start...' }
 // change { event: 'proc-diff-callfun-modify', id: '114116', msg: 'done' }
 // change { event: 'end', msg: 'done' }
-// n 4 stage[3.modify]
 // run end
 // n 5 stage[4.remove]
 // running...
-// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
-// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'tag' }
-// change { event: 'end', msg: 'done' }
 // n 6 stage[4.remove]
+// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
+// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'add-tag' }
+// change { event: 'end', msg: 'done' }
 // run end
 // n 7 stage[5.add]
 // running...
+// n 8 stage[5.add]
 // change { event: 'proc-add-callfun-add', id: '114116', msg: 'start...' }
 // change { event: 'proc-add-callfun-add', id: '114116', msg: 'release-tag' }
+// change { event: 'proc-add-callfun-add', id: '114116', msg: 'done' }
 // change { event: 'end', msg: 'done' }
-// n 8 stage[5.add]
 // run end
 // n 9 stage[6.remove]
 // running...
-// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
-// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'tag' }
-// change { event: 'end', msg: 'done' }
 // n 10 stage[6.remove]
+// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
+// change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'add-tag' }
+// change { event: 'end', msg: 'done' }
 // run end
 // n 11 stage[6.remove]
 // running...
-// change { event: 'cancel', msg: 'no difference' }
 // n 12 stage[6.remove]
+// change { event: 'cancel', msg: 'no difference' }
 // run end
 // n 13 stage[6.remove]
 // running...
-// change { event: 'cancel', msg: 'no difference' }
 // n 14 stage[6.remove]
+// change { event: 'cancel', msg: 'no difference' }
 // change {
 //   event: 'proc-retake-remove',
 //   id: '114116',
@@ -349,15 +350,15 @@ let tt = setInterval(() => {
 // run end
 // n 15 stage[7.eff-add]
 // running...
+// n 16 stage[7.eff-add]
 // change { event: 'proc-add-callfun-add', id: '114116', msg: 'start...' }
 // change { event: 'proc-add-callfun-add', id: '114116', msg: 'done' }
 // change { event: 'end', msg: 'done' }
-// n 16 stage[7.eff-add]
 // run end
 // n 17 stage[7.eff-add]
 // running...
-// change { event: 'cancel', msg: 'no difference' }
 // n 18 stage[7.eff-add]
+// change { event: 'cancel', msg: 'no difference' }
 // run end
 
 

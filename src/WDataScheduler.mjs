@@ -32,8 +32,8 @@ import ot from 'dayjs'
  * @param {Object} [opt={}] 輸入設定物件，預設{}
  * @param {String} [opt.keyId='keyId'] 輸入各筆數據之主鍵字串，預設'keyId'
  * @param {String} [opt.fdTagRemove='./_tagRemove'] 輸入暫存標記為刪除數據資料夾字串，預設'./_tagRemove'
- * @param {String} [opt.fdTaskCpActualSrc='./_taskCpActualSrc'] 輸入任務狀態之來源端完整資料夾字串，預設'./_taskCpActualSrc'
- * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入任務狀態之來源端資料夾字串，預設'./_taskCpSrc'
+ * @param {String} [opt.fdTaskCpActualSrc='./_taskCpActualSrc'] 輸入儲存來源端之完整任務狀態資料夾字串，預設'./_taskCpActualSrc'
+ * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入儲存來源端之觸發任務狀態資料夾字串，預設'./_taskCpSrc'
  * @param {String} [opt.fdLog='./_logs'] 輸入儲存log資料夾字串，預設'./_logs'
  * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，回傳資料陣列，為必須，預設null
  * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，回傳資料陣列，為必須，預設null
@@ -175,7 +175,7 @@ let WDataScheduler = async(opt = {}) => {
         fsCreateFolder(fdTaskCpActualSrc)
     }
 
-    //fdTaskCpSrc
+    //fdTaskCpSrc, 儲存觸發任務狀態資料夾
     let fdTaskCpSrc = get(opt, 'fdTaskCpSrc')
     if (!isestr(fdTaskCpSrc)) {
         fdTaskCpSrc = './_taskCpSrc'
@@ -334,8 +334,8 @@ let WDataScheduler = async(opt = {}) => {
         },
     }
 
-    //tagCore
-    let tagCore = async (mode, fn, hash = '') => {
+    //addTagCore
+    let addTagCore = async (mode, fn, hash = '') => {
 
         //fdTag
         let fdTag = ''
@@ -373,21 +373,21 @@ let WDataScheduler = async(opt = {}) => {
 
     }
 
-    // //tagAdd
-    // let tagAdd = async (fn) => {
-    //     let r = await tagCore('add', fn)
+    // //addTagAdd
+    // let addTagAdd = async (fn) => {
+    //     let r = await addTagCore('add', fn)
     //     return r
     // }
 
-    // //tagModify
-    // let tagModify = async (fn, hash) => {
-    //     let r = await tagCore('modify', fn, hash)
+    // //addTagModify
+    // let addTagModify = async (fn, hash) => {
+    //     let r = await addTagCore('modify', fn, hash)
     //     return r
     // }
 
-    //tagRemove
-    let tagRemove = async (fn) => {
-        let r = await tagCore('remove', fn)
+    //addTagRemove
+    let addTagRemove = async (fn) => {
+        let r = await addTagCore('remove', fn)
         return r
     }
 
@@ -565,6 +565,7 @@ let WDataScheduler = async(opt = {}) => {
     }
 
     //coreDetect
+    let otkActualSrc = null
     let otkSrc = null
     let coreDetect = async() => {
 
@@ -630,7 +631,7 @@ let WDataScheduler = async(opt = {}) => {
         let otkActual = fsTaskCp(fdTaskCpActualSrc, fdTaskCpActualSrc) //因不使用偵測端, 故設定fdTar=fdSrc
 
         //otkActualSrc
-        let otkActualSrc = otkActual.buildSrc()
+        otkActualSrc = otkActual.buildSrc()
         // otkActualSrc.on('set', (msg) => {
         //     // console.log(`src send task...`, msg)
         // })
@@ -831,17 +832,17 @@ let WDataScheduler = async(opt = {}) => {
                     //checkTagRemove
                     let r = await checkTagRemove(v[keyId], { checkTime: false })
 
-                    //check, 是否位於刪除清單內
+                    //check, 是否位於刪除清單
                     if (r.b) {
-                        //若位於刪除清單, 不呼叫tagRemove更新[刪除tag]
+                        //若位於刪除清單, 不處理
                     }
                     else {
-                        //若位於刪除清單, 呼叫tagRemove新增[刪除tag]
+                        //若非位於刪除清單, 呼叫addTagRemove新增[刪除tag]
 
-                        //tagRemove
-                        await tagRemove(v[keyId])
+                        //addTagRemove
+                        await addTagRemove(v[keyId])
 
-                        srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'tag' })
+                        srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'add-tag' })
                     }
 
                 }
@@ -902,24 +903,19 @@ let WDataScheduler = async(opt = {}) => {
                 //otkActualSrc.set
                 otkActualSrc.set(v[keyId], hash)
 
+                //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
+                otkSrc.set(v[keyId], hash)
+
                 //check
-                if (timeToleranceRemove <= 0) {
-                    //若未給予刪除誤差
-
-                    //otkSrc.set
-                    otkSrc.set(v[keyId], hash)
-
-                    srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
-                }
-                else {
+                if (timeToleranceRemove > 0) {
                     //若有給予刪除誤差
 
                     //checkTagRemove
                     let r = await checkTagRemove(v[keyId], { checkTime: false })
 
-                    //check, 是否位於刪除清單內
+                    //check, 是否位於刪除清單
                     if (r.b) {
-                        //若位於刪除清單, 則呼叫releaseTagRemove清除[刪除tag]
+                        //若位於刪除清單, 呼叫releaseTagRemove清除[刪除tag]
 
                         //releaseTagRemove
                         await releaseTagRemove(v[keyId])
@@ -927,16 +923,12 @@ let WDataScheduler = async(opt = {}) => {
                         srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'release-tag' })
                     }
                     else {
-                        //若非位於刪除清單, 則呼叫otkSrc.set
-
-                        //otkSrc.set
-                        otkSrc.set(v[keyId], hash)
-
-                        srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
+                        //若非位於刪除清單, 不處理
                     }
 
                 }
 
+                srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
             }
             catch (err) {
                 console.log(err)
@@ -993,7 +985,7 @@ let WDataScheduler = async(opt = {}) => {
                 //otkActualSrc.set
                 otkActualSrc.set(v[keyId], hash)
 
-                //otkSrc.set
+                //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
                 otkSrc.set(v[keyId], hash)
 
                 srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
@@ -1104,9 +1096,16 @@ let WDataScheduler = async(opt = {}) => {
             //checkTagRemove
             let r = await checkTagRemove(v.name, { timeNow, checkTime: true }) //v.name對應v[keyId]
 
-            //check, 刪除任務之時間是否已超過容許值門檻
-            if (r.b) {
-                //時間差已超過容許值門檻, 則呼叫releaseTagRemove清除[刪除tag], 與呼叫otkSrc.remove
+            //b
+            let b1 = r.b //刪除任務之時間已超過容許值門檻
+            let b2 = !isestr(otkActualSrc.get(v.name)) //v.name對應v[keyId], 執行偵測完整任務內已不存在v[keyId]
+            let b3 = isestr(otkSrc.get(v.name)) //v.name對應v[keyId], 執行偵測觸發任務內仍存在v[keyId]
+            let b = b1 && b2 && b3 //因可能有非預期中斷與重啟問題, 故須同時檢測
+            // console.log('b1', b1, 'b2', b2, 'b3', b3, 'b', b)
+
+            //check
+            if (b) {
+                //已滿足刪除任務所有條件, 呼叫releaseTagRemove清除[刪除tag], 與呼叫otkSrc.remove
 
                 await releaseTagRemove(v.name) //v.name對應v[keyId]
 
