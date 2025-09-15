@@ -1005,32 +1005,6 @@ let WDataScheduler = async(opt = {}) => {
             return
         }
 
-        // //成功處理完畢, 將fdDwAttime儲存至fdDwCurrent
-        // if (true) {
-
-        //     //fsCleanFolder
-        //     fsCleanFolder(fdDwCurrent)
-
-        //     //fsCopyFolder
-        //     let r = fsCopyFolder(fdDwAttime, fdDwCurrent)
-
-        //     //check
-        //     if (r.error) {
-        //         console.log(r.error)
-        //         srlog.error({ event: 'task-update-rawData', msg: r.error })
-        //         msgExit = 'error at task-update-rawData'
-        //         return
-        //     }
-
-        // }
-
-        // //check
-        // if (isestr(msgExit)) {
-        //     console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-        //     srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-        //     return
-        // }
-
         //funBeforeEnd
         if (isfun(funBeforeEnd)) {
             try {
