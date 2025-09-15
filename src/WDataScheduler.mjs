@@ -35,8 +35,8 @@ import ot from 'dayjs'
  * @param {String} [opt.fdTaskCpActualSrc='./_taskCpActualSrc'] 輸入儲存來源端之完整任務狀態資料夾字串，預設'./_taskCpActualSrc'
  * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入儲存來源端之觸發任務狀態資料夾字串，預設'./_taskCpSrc'
  * @param {String} [opt.fdLog='./_logs'] 輸入儲存log資料夾字串，預設'./_logs'
- * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，回傳資料陣列，為必須，預設null
- * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，回傳資料陣列，為必須，預設null
+ * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之函數，數據通常為hash數據，回傳資料陣列，為必須，預設null
+ * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之函數，數據通常為hash數據，回傳資料陣列，為必須，預設null
  * @param {Function} [opt.funAdd=null] 輸入當有新資料時，需要連動處理之函數，預設null
  * @param {Function} [opt.funModify=null] 輸入當有資料需更新時，需要連動處理之函數，預設null
  * @param {Function} [opt.funRemove=null] 輸入當有資料需刪除時，需要連動處理之函數，預設null
