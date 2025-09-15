@@ -27,7 +27,7 @@ import ot from 'dayjs'
 
 
 /**
- * 基於檔案之任務建構器
+ * 基於檔案之數據變更驅動任務建構器
  *
  * @param {Object} [opt={}] 輸入設定物件，預設{}
  * @param {String} [opt.keyId='keyId'] 輸入各筆數據之主鍵字串，預設'keyId'
