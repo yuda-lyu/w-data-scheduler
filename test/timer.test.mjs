@@ -252,7 +252,7 @@ describe('timer', function() {
                     'start',
                     'proc-callfun-download',
                     'proc-callfun-getCurrent',
-                    'compare',
+                    'proc-compare',
                     'proc-callfun-beforeEnd',
                 ])) {
                     return
@@ -427,7 +427,12 @@ describe('timer', function() {
             num: 1,
             msg: 'done'
         },
-        { stage: '6.remove', event: 'cancel', msg: 'no difference' },
+        {
+            stage: '6.remove',
+            event: 'cancel-stage-main',
+            msg: 'no difference'
+        },
+        { stage: '6.remove', event: 'end', msg: 'done' },
         { stage: '6.remove', event: 'proc-callfun-getNew', msg: 'start...' },
         {
             stage: '6.remove',
@@ -435,7 +440,12 @@ describe('timer', function() {
             num: 1,
             msg: 'done'
         },
-        { stage: '6.remove', event: 'cancel', msg: 'no difference' },
+        {
+            stage: '6.remove',
+            event: 'cancel-stage-main',
+            msg: 'no difference'
+        },
+        { stage: '6.remove', event: 'end', msg: 'done' },
         {
             stage: '7.eff-add',
             event: 'proc-retake-remove',
@@ -477,7 +487,12 @@ describe('timer', function() {
             num: 2,
             msg: 'done'
         },
-        { stage: '7.eff-add', event: 'cancel', msg: 'no difference' }
+        {
+            stage: '7.eff-add',
+            event: 'cancel-stage-main',
+            msg: 'no difference'
+        },
+        { stage: '7.eff-add', event: 'end', msg: 'done' }
     ]
 
     it('test timer', async () => {

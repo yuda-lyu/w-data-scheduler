@@ -32,6 +32,10 @@ describe('once', function() {
                     'id': '114115',
                     'hash': 'abc',
                 },
+                {
+                    'id': '114116',
+                    'hash': 'def',
+                },
             ]
             return items
         }
@@ -42,10 +46,6 @@ describe('once', function() {
                 {
                     'id': '114115',
                     'hash': 'abc',
-                },
-                {
-                    'id': '114116',
-                    'hash': 'def',
                 },
             ]
             return items
@@ -103,24 +103,20 @@ describe('once', function() {
     let ms = [
         { event: 'start', msg: 'running...' },
         { event: 'proc-callfun-getNew', msg: 'start...' },
-        { event: 'proc-callfun-getNew', num: 1, msg: 'done' },
+        { event: 'proc-callfun-getNew', num: 2, msg: 'done' },
         { event: 'proc-callfun-getCurrent', msg: 'start...' },
-        { event: 'proc-callfun-getCurrent', num: 2, msg: 'done' },
-        { event: 'compare', msg: 'start...' },
+        { event: 'proc-callfun-getCurrent', num: 1, msg: 'done' },
+        { event: 'proc-compare', msg: 'start...' },
         {
-            event: 'compare',
-            numRemove: 1,
-            numAdd: 0,
+            event: 'proc-compare',
+            numRemove: 0,
+            numAdd: 1,
             numModify: 0,
             numSame: 1,
             msg: 'done'
         },
-        {
-            event: 'proc-remove-callfun-remove',
-            id: '114116',
-            msg: 'start...'
-        },
-        { event: 'proc-remove-callfun-remove', id: '114116', msg: 'done' },
+        { event: 'proc-add-callfun-add', id: '114116', msg: 'start...' },
+        { event: 'proc-add-callfun-add', id: '114116', msg: 'done' },
         { event: 'end', msg: 'done' }
     ]
 

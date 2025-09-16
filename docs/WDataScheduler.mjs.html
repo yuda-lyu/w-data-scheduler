@@ -182,20 +182,20 @@ import ot from 'dayjs'
  * })
  * // change { event: 'start', msg: 'running...' }
  * // change { event: 'proc-callfun-getNew', msg: 'start...' }
- * // change { event: 'proc-callfun-getNew', num: 1, msg: 'done' }
+ * // change { event: 'proc-callfun-getNew', num: 2, msg: 'done' }
  * // change { event: 'proc-callfun-getCurrent', msg: 'start...' }
- * // change { event: 'proc-callfun-getCurrent', num: 2, msg: 'done' }
- * // change { event: 'compare', msg: 'start...' }
+ * // change { event: 'proc-callfun-getCurrent', num: 1, msg: 'done' }
+ * // change { event: 'proc-compare', msg: 'start...' }
  * // change {
- * //   event: 'compare',
- * //   numRemove: 1,
- * //   numAdd: 0,
+ * //   event: 'proc-compare',
+ * //   numRemove: 0,
+ * //   numAdd: 1,
  * //   numModify: 0,
  * //   numSame: 1,
  * //   msg: 'done'
  * // }
- * // change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'start...' }
- * // change { event: 'proc-remove-callfun-remove', id: '114116', msg: 'done' }
+ * // change { event: 'proc-add-callfun-add', id: '114116', msg: 'start...' }
+ * // change { event: 'proc-add-callfun-add', id: '114116', msg: 'done' }
  * // change { event: 'end', msg: 'done' }
  *
  */
@@ -643,37 +643,6 @@ let WDataScheduler = async(opt = {}) => {
             return r
         }
 
-
-        //msgExit
-        let msgExit = ''
-
-        //funAfterStart
-        if (isfun(funAfterStart)) {
-            try {
-                srlog.info({ event: eventNameProcCallfunAfterStart, msg: 'start...' })
-
-                //funAfterStart
-                let q = funAfterStart()
-                if (ispm(q)) {
-                    q = await q
-                }
-
-                srlog.info({ event: eventNameProcCallfunAfterStart, msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcCallfunAfterStart, msg: getErrorMessage(err) })
-                msgExit = 'error at proc-callfun-afterStart'
-            }
-        }
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
-        }
-
         //fsTaskCp
         let otkActual = fsTaskCp(fdTaskCpActualSrc, fdTaskCpActualSrc) //因不使用偵測端, 故設定fdTar=fdSrc
 
@@ -698,385 +667,453 @@ let WDataScheduler = async(opt = {}) => {
         //     // console.log(`src send task...`, msg)
         // })
 
-        //itemsAtt
-        let itemsAtt = []
-        if (true) {
-            try {
-                srlog.info({ event: eventNameProcCallfunGetNew, msg: 'start...' })
+        //msgExit
+        let msgExit = ''
 
-                //funGetNew
-                let q = funGetNew()
-                if (ispm(q)) {
-                    q = await q
-                }
+        //stageAfterStart
+        let stageAfterStart = async() => {
 
-                //save
-                itemsAtt = q
+            //funAfterStart
+            if (isfun(funAfterStart)) {
+                try {
+                    srlog.info({ event: eventNameProcCallfunAfterStart, msg: 'start...' })
 
-                srlog.info({ event: eventNameProcCallfunGetNew, num: size(q), msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcCallfunGetNew, msg: getErrorMessage(err) })
-                msgExit = 'error at proc-callfun-getNew'
-            }
-        }
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
-        }
-
-        //itemsCur
-        let itemsCur = []
-        if (true) {
-            try {
-                srlog.info({ event: eventNameProcCallfunGetCurrent, msg: 'start...' })
-
-                //funGetCurrent
-                let q = funGetCurrent()
-                if (ispm(q)) {
-                    q = await q
-                }
-
-                //save
-                itemsCur = q
-
-                srlog.info({ event: eventNameProcCallfunGetCurrent, num: size(q), msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcCallfunGetCurrent, msg: getErrorMessage(err) })
-                msgExit = 'error at proc-callfun-getCurrent'
-            }
-        }
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
-        }
-
-        //check, itemsAtt第1次執行預期一定有數據, 第n次執行無數據視為非預期被清空須報錯
-        if (size(itemsAtt) === 0) {
-            console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'no data' })
-            return
-        }
-
-        // //check, itemsCur第1次執行會無數據, 不能偵測報錯
-        // if (size(itemsCur) === 0) {
-        //     console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
-        //     srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'no data' })
-        //     return
-        // }
-
-        // //check
-        // if (size(itemsCur) - size(itemsAtt) > 10) {
-        //     console.log(`difference between the data before and after is too large, size(itemsCur)[${size(itemsCur)}]-size(itemsAtt)[${size(itemsAtt)}]>10`) //當前取得數據與已儲存數據之數量差距超過10, 不進行後續動作, 當前取得數據筆數[${size(itemsAtt)}], 已儲存數據筆數[${size(itemsCur)}]
-        //     srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'difference between the data before and after is too large' })
-        //     return
-        // }
-
-        //ltdtDiffByKey
-        let r = null
-        if (true) {
-            try {
-                srlog.info({ event: 'compare', msg: 'start...' })
-
-                //ltdtSrc, ltdtTar
-                let ltdtSrc = itemsAtt
-                // console.log('ltdtSrc', ltdtSrc)
-                let ltdtTar = itemsCur
-                // console.log('ltdtTar', ltdtTar)
-
-                //ltdtDiffByKey
-                r = ltdtDiffByKey(ltdtTar, ltdtSrc, keyId, { withInfor: false })
-                // console.log('ltdtDiffByKey', r)
-                //   del: [ {...} ],
-                //   add: [ {...} ],
-                //   same: [ {...} ],
-                //   diff: [ {...} ],
-                let numDel = size(r.del)
-                let numAdd = size(r.add)
-                let numDiff = size(r.diff)
-                let numSame = size(r.same)
-
-                srlog.info({ event: 'compare', numRemove: numDel, numAdd, numModify: numDiff, numSame, msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: 'compare', msg: getErrorMessage(err) })
-            }
-        }
-
-        //check
-        if (!iseobj(r)) {
-            console.log(`can not calculate the difference, task canceled`) //無法計算當前取得與已儲存數據之差異, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'can not calculate the difference between the data before and after' })
-            return
-        }
-
-        //check
-        if (size(r.del) === 0 &amp;&amp; size(r.add) === 0 &amp;&amp; size(r.diff) === 0) {
-            //當前取得與已儲存數據無差異, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: 'no difference' })
-            return
-        }
-
-        //trigger del
-        await pmSeries(r.del, async(v) => {
-
-            //check
-            if (isestr(msgExit)) {
-                return
-            }
-
-            try {
-                srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'start...' })
-
-                //funRemove
-                if (isfun(funRemove)) {
-                    let q = funRemove(v)
+                    //funAfterStart
+                    let q = funAfterStart()
                     if (ispm(q)) {
                         q = await q
                     }
-                }
 
-                // srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-remove-callfun-remove'
+                    srlog.info({ event: eventNameProcCallfunAfterStart, msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcCallfunAfterStart, msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-callfun-afterStart'
+                }
             }
 
             //check
             if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-afterStart', msg: msgExit })
                 return
             }
 
-            try {
+            return null
+        }
+        if (!isestr(msgExit)) { //開始前階段一定無錯誤(無msgExit), 一定會執行
+            await stageAfterStart()
+                .catch(() => {})
+        }
 
-                //otkActualSrc.remove
-                otkActualSrc.remove(v[keyId])
+        //stageMain
+        let stageMain = async() => {
+
+            //itemsAtt
+            let itemsAtt = []
+            if (true) {
+                try {
+                    srlog.info({ event: eventNameProcCallfunGetNew, msg: 'start...' })
+
+                    //funGetNew
+                    let q = funGetNew()
+                    if (ispm(q)) {
+                        q = await q
+                    }
+
+                    //save
+                    itemsAtt = q
+
+                    srlog.info({ event: eventNameProcCallfunGetNew, num: size(q), msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcCallfunGetNew, msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-callfun-getNew'
+                }
+            }
+
+            //check
+            if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
+                return
+            }
+
+            //itemsCur
+            let itemsCur = []
+            if (true) {
+                try {
+                    srlog.info({ event: eventNameProcCallfunGetCurrent, msg: 'start...' })
+
+                    //funGetCurrent
+                    let q = funGetCurrent()
+                    if (ispm(q)) {
+                        q = await q
+                    }
+
+                    //save
+                    itemsCur = q
+
+                    srlog.info({ event: eventNameProcCallfunGetCurrent, num: size(q), msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcCallfunGetCurrent, msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-callfun-getCurrent'
+                }
+            }
+
+            //check
+            if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
+                return
+            }
+
+            //check, itemsAtt第1次執行預期一定有數據, 第n次執行無數據視為非預期被清空須報錯
+            if (size(itemsAtt) === 0) {
+                console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: 'no data' })
+                return
+            }
+
+            // //check, itemsCur第1次執行會無數據, 不能偵測報錯
+            // if (size(itemsCur) === 0) {
+            //     console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
+            //     srlog.info({ event: 'cancel-stage-main',  msg: 'no data' })
+            //     return
+            // }
+
+            // //check
+            // if (size(itemsCur) - size(itemsAtt) > 10) {
+            //     console.log(`difference between the data before and after is too large, size(itemsCur)[${size(itemsCur)}]-size(itemsAtt)[${size(itemsAtt)}]>10`) //當前取得數據與已儲存數據之數量差距超過10, 不進行後續動作, 當前取得數據筆數[${size(itemsAtt)}], 已儲存數據筆數[${size(itemsCur)}]
+            //     srlog.info({ event: 'cancel-stage-main',  msg: 'difference between the data before and after is too large' })
+            //     return
+            // }
+
+            //ltdtDiffByKey
+            let r = null
+            if (true) {
+                try {
+                    srlog.info({ event: 'proc-compare', msg: 'start...' })
+
+                    //ltdtSrc, ltdtTar
+                    let ltdtSrc = itemsAtt
+                    // console.log('ltdtSrc', ltdtSrc)
+                    let ltdtTar = itemsCur
+                    // console.log('ltdtTar', ltdtTar)
+
+                    //ltdtDiffByKey
+                    r = ltdtDiffByKey(ltdtTar, ltdtSrc, keyId, { withInfor: false })
+                    // console.log('ltdtDiffByKey', r)
+                    //   del: [ {...} ],
+                    //   add: [ {...} ],
+                    //   same: [ {...} ],
+                    //   diff: [ {...} ],
+                    let numDel = size(r.del)
+                    let numAdd = size(r.add)
+                    let numDiff = size(r.diff)
+                    let numSame = size(r.same)
+
+                    srlog.info({ event: 'proc-compare', numRemove: numDel, numAdd, numModify: numDiff, numSame, msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: 'proc-compare', msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-compare'
+                }
+            }
+
+            //check
+            if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
+                return
+            }
+
+            //check
+            if (!iseobj(r)) {
+                console.log(`can not calculate the difference, task canceled`) //無法計算當前取得與已儲存數據之差異, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: 'can not calculate the difference between the data before and after' })
+                return
+            }
+
+            //check
+            if (size(r.del) === 0 &amp;&amp; size(r.add) === 0 &amp;&amp; size(r.diff) === 0) {
+                //當前取得與已儲存數據無差異, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: 'no difference' })
+                return
+            }
+
+            //trigger del
+            await pmSeries(r.del, async(v) => {
 
                 //check
-                if (timeToleranceRemove &lt;= 0) {
-                    //若未給予刪除誤差
-
-                    //otkSrc.remove
-                    otkSrc.remove(v[keyId])
-
-                    srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
-                }
-                else {
-                    //若有給予刪除誤差
-
-                    //checkTagRemove
-                    let r = await checkTagRemove(v[keyId], { checkTime: false })
-
-                    //check, 是否位於刪除清單
-                    if (r.b) {
-                        //若位於刪除清單, 不處理
-                    }
-                    else {
-                        //若非位於刪除清單, 呼叫addTagRemove新增[刪除tag]
-
-                        //addTagRemove
-                        await addTagRemove(v[keyId])
-
-                        srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'add-tag' })
-                    }
-
+                if (isestr(msgExit)) {
+                    return
                 }
 
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-remove-callfun-remove'
-            }
+                try {
+                    srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'start...' })
 
-        })
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
-        }
-
-        //trigger add
-        await pmSeries(r.add, async(v) => {
-
-            //check
-            if (isestr(msgExit)) {
-                return
-            }
-
-            try {
-                srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'start...' })
-
-                //funAdd
-                if (isfun(funAdd)) {
-                    let q = funAdd(v)
-                    if (ispm(q)) {
-                        q = await q
+                    //funRemove
+                    if (isfun(funRemove)) {
+                        let q = funRemove(v)
+                        if (ispm(q)) {
+                            q = await q
+                        }
                     }
+
+                    // srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
                 }
-
-                // srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-add-callfun-add'
-            }
-
-            //check
-            if (isestr(msgExit)) {
-                return
-            }
-
-            try {
-
-                //hash
-                let hash = str2b64(JSON.stringify(v))
-
-                //otkActualSrc.set
-                otkActualSrc.set(v[keyId], hash)
-
-                //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
-                otkSrc.set(v[keyId], hash)
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-remove-callfun-remove'
+                }
 
                 //check
-                if (timeToleranceRemove > 0) {
-                    //若有給予刪除誤差
+                if (isestr(msgExit)) {
+                    return
+                }
 
-                    //checkTagRemove
-                    let r = await checkTagRemove(v[keyId], { checkTime: false })
+                try {
 
-                    //check, 是否位於刪除清單
-                    if (r.b) {
-                        //若位於刪除清單, 呼叫releaseTagRemove清除[刪除tag]
+                    //otkActualSrc.remove
+                    otkActualSrc.remove(v[keyId])
 
-                        //releaseTagRemove
-                        await releaseTagRemove(v[keyId])
+                    //check
+                    if (timeToleranceRemove &lt;= 0) {
+                        //若未給予刪除誤差
 
-                        srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'release-tag' })
+                        //otkSrc.remove
+                        otkSrc.remove(v[keyId])
+
+                        srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
                     }
                     else {
-                        //若非位於刪除清單, 不處理
+                        //若有給予刪除誤差
+
+                        //checkTagRemove
+                        let r = await checkTagRemove(v[keyId], { checkTime: false })
+
+                        //check, 是否位於刪除清單
+                        if (r.b) {
+                            //若位於刪除清單, 不處理
+                        }
+                        else {
+                            //若非位於刪除清單, 呼叫addTagRemove新增[刪除tag]
+
+                            //addTagRemove
+                            await addTagRemove(v[keyId])
+
+                            srlog.info({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'add-tag' })
+                        }
+
                     }
 
                 }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-remove-callfun-remove'
+                }
 
-                srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-add-callfun-add'
-            }
-
-        })
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
-        }
-
-        //trigger diff
-        await pmSeries(r.diff, async(v) => {
+            })
 
             //check
             if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
 
-            try {
-                srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'start...' })
+            //trigger add
+            await pmSeries(r.add, async(v) => {
 
-                //funModify
-                if (isfun(funModify)) {
-                    let q = funModify(v)
+                //check
+                if (isestr(msgExit)) {
+                    return
+                }
+
+                try {
+                    srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'start...' })
+
+                    //funAdd
+                    if (isfun(funAdd)) {
+                        let q = funAdd(v)
+                        if (ispm(q)) {
+                            q = await q
+                        }
+                    }
+
+                    // srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-add-callfun-add'
+                }
+
+                //check
+                if (isestr(msgExit)) {
+                    return
+                }
+
+                try {
+
+                    //hash
+                    let hash = str2b64(JSON.stringify(v))
+
+                    //otkActualSrc.set
+                    otkActualSrc.set(v[keyId], hash)
+
+                    //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
+                    otkSrc.set(v[keyId], hash)
+
+                    //check
+                    if (timeToleranceRemove > 0) {
+                        //若有給予刪除誤差
+
+                        //checkTagRemove
+                        let r = await checkTagRemove(v[keyId], { checkTime: false })
+
+                        //check, 是否位於刪除清單
+                        if (r.b) {
+                            //若位於刪除清單, 呼叫releaseTagRemove清除[刪除tag]
+
+                            //releaseTagRemove
+                            await releaseTagRemove(v[keyId])
+
+                            srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'release-tag' })
+                        }
+                        else {
+                            //若非位於刪除清單, 不處理
+                        }
+
+                    }
+
+                    srlog.info({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-add-callfun-add'
+                }
+
+            })
+
+            //check
+            if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
+                return
+            }
+
+            //trigger diff
+            await pmSeries(r.diff, async(v) => {
+
+                //check
+                if (isestr(msgExit)) {
+                    return
+                }
+
+                try {
+                    srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'start...' })
+
+                    //funModify
+                    if (isfun(funModify)) {
+                        let q = funModify(v)
+                        if (ispm(q)) {
+                            q = await q
+                        }
+                    }
+
+                    // srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-diff-callfun-modify'
+                }
+
+                //check
+                if (isestr(msgExit)) {
+                    return
+                }
+
+                try {
+
+                    //hash
+                    let hash = str2b64(JSON.stringify(v))
+
+                    //otkActualSrc.set
+                    otkActualSrc.set(v[keyId], hash)
+
+                    //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
+                    otkSrc.set(v[keyId], hash)
+
+                    srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-diff-callfun-modify'
+                }
+
+            })
+
+            //check
+            if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-main', msg: msgExit })
+                return
+            }
+
+            return null
+        }
+        if (!isestr(msgExit)) { //若開始前階段有錯誤發生(有msgExit), 則不執行
+            await stageMain()
+                .catch(() => {})
+        }
+
+        //stageBeforeEnd
+        let stageBeforeEnd = async() => {
+
+            //funBeforeEnd
+            if (isfun(funBeforeEnd)) {
+                try {
+                    srlog.info({ event: eventNameProcCallfunBeforeEnd, msg: 'start...' })
+
+                    //funBeforeEnd
+                    let q = funBeforeEnd()
                     if (ispm(q)) {
                         q = await q
                     }
-                }
 
-                // srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-diff-callfun-modify'
+                    srlog.info({ event: eventNameProcCallfunBeforeEnd, msg: 'done' })
+                }
+                catch (err) {
+                    console.log(err)
+                    srlog.error({ event: eventNameProcCallfunBeforeEnd, msg: getErrorMessage(err) })
+                    msgExit = 'error at proc-callfun-beforeEnd'
+                }
             }
 
             //check
             if (isestr(msgExit)) {
+                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                srlog.info({ event: 'cancel-stage-beforeEnd', msg: msgExit })
                 return
             }
 
-            try {
-
-                //hash
-                let hash = str2b64(JSON.stringify(v))
-
-                //otkActualSrc.set
-                otkActualSrc.set(v[keyId], hash)
-
-                //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
-                otkSrc.set(v[keyId], hash)
-
-                srlog.info({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                msgExit = 'error at proc-diff-callfun-modify'
-            }
-
-        })
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
+            return null
         }
-
-        //funBeforeEnd
-        if (isfun(funBeforeEnd)) {
-            try {
-                srlog.info({ event: eventNameProcCallfunBeforeEnd, msg: 'start...' })
-
-                //funBeforeEnd
-                let q = funBeforeEnd()
-                if (ispm(q)) {
-                    q = await q
-                }
-
-                srlog.info({ event: eventNameProcCallfunBeforeEnd, msg: 'done' })
-            }
-            catch (err) {
-                console.log(err)
-                srlog.error({ event: eventNameProcCallfunBeforeEnd, msg: getErrorMessage(err) })
-                msgExit = 'error at proc-callfun-beforeEnd'
-            }
-        }
-
-        //check
-        if (isestr(msgExit)) {
-            console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-            srlog.info({ event: 'cancel', ...calcTimeRun(), msg: msgExit })
-            return
+        if (true) { //不論有無錯誤, 一定會執行
+            await stageBeforeEnd()
+                .catch(() => {})
         }
 
         srlog.info({ event: 'end', ...calcTimeRun(), msg: 'done' })
@@ -1200,7 +1237,7 @@ export default WDataScheduler
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Mon Sep 15 2025 09:33:41 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Tue Sep 16 2025 10:49:30 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
