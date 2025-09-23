@@ -572,8 +572,6 @@ let WDataScheduler = async(opt = {}) => {
         //因core執行初期ev尚未回傳給外部監聽, 故須delay延遲脫勾
         await delay(1)
 
-        srlog.info({ event: 'start', msg: 'running...' })
-
         //ts
         let ts = ot()
 
@@ -595,6 +593,8 @@ let WDataScheduler = async(opt = {}) => {
 
             return r
         }
+
+        srlog.info({ event: 'start', timeRunStart: ts.format('YYYY-MM-DDTHH:mm:ssZ'), msg: 'running...' })
 
         //fsTaskCp
         let otkActual = fsTaskCp(fdTaskCpActualSrc, fdTaskCpActualSrc) //因不使用偵測端, 故設定fdTar=fdSrc
@@ -1079,6 +1079,12 @@ let WDataScheduler = async(opt = {}) => {
         })
 
     let coreRetake = async() => {
+
+        //check
+        if (timeToleranceRemove <= 0) {
+            //不使用偵測延遲刪除
+            return
+        }
 
         //wait
         await waitFun(() => {
