@@ -33,7 +33,8 @@ import ot from 'dayjs'
  * @param {String} [opt.fdTagRemove='./_tagRemove'] 輸入暫存標記為刪除數據資料夾字串，預設'./_tagRemove'
  * @param {String} [opt.fdTaskCpActualSrc='./_taskCpActualSrc'] 輸入儲存來源端之完整任務狀態資料夾字串，預設'./_taskCpActualSrc'
  * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入儲存來源端之觸發任務狀態資料夾字串，預設'./_taskCpSrc'
- * @param {Object} [opt.srLog=null] 輸入事件紀錄物件，需提供函數info、warn與error，各接收一紀錄物件，供偵測數據變更時紀錄各階段事件，未提供時不進行紀錄，預設null
+ * @param {Object} [opt.srLog=null] 輸入事件紀錄物件，需提供函數info、warn與error，各接收一紀錄物件，供偵測數據變更時紀錄各階段事件，未提供時不進行紀錄，其中warn目前保留未使用，預設null
+ * @param {Boolean} [opt.useShowLog=true] 輸入是否於偵測過程將錯誤與取消訊息輸出至console布林值，預設true
  * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，回傳資料陣列，為必須，預設null
  * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，回傳資料陣列，為必須，預設null
  * @param {Function} [opt.funAdd=null] 輸入當有新資料時，需要連動處理之函數，預設null
@@ -44,6 +45,7 @@ import ot from 'dayjs'
  * @param {Number} [opt.timeToleranceRemove=0] 輸入刪除任務之防抖時長，單位ms，預設0，代表不使用
  * @param {String} [opt.eventNameProcCallfunGetNew='proc-callfun-getNew'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-callfun-getNew'
  * @param {String} [opt.eventNameProcCallfunGetCurrent='proc-callfun-getCurrent'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-callfun-getCurrent'
+ * @param {String} [opt.eventNameProcCompare='proc-compare'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-compare'
  * @param {String} [opt.eventNameProcAddCallfunAdd='proc-add-callfun-add'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-add-callfun-add'
  * @param {String} [opt.eventNameProcDiffCallfunModify='proc-diff-callfun-modify'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-diff-callfun-modify'
  * @param {String} [opt.eventNameProcRemoveCallfunRemove='proc-remove-callfun-remove'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-remove-callfun-remove'
@@ -251,6 +253,12 @@ let WDataScheduler = async(opt = {}) => {
         eventNameProcCallfunGetCurrent = 'proc-callfun-getCurrent'
     }
 
+    //eventNameProcCompare
+    let eventNameProcCompare = get(opt, 'eventNameProcCompare')
+    if (!isestr(eventNameProcCompare)) {
+        eventNameProcCompare = 'proc-compare'
+    }
+
     //eventNameProcAddCallfunAdd
     let eventNameProcAddCallfunAdd = get(opt, 'eventNameProcAddCallfunAdd')
     if (!isestr(eventNameProcAddCallfunAdd)) {
@@ -297,6 +305,12 @@ let WDataScheduler = async(opt = {}) => {
     let eventNameProcCoreRetake = get(opt, 'eventNameProcCoreRetake')
     if (!isestr(eventNameProcCoreRetake)) {
         eventNameProcCoreRetake = 'proc-coreRetake'
+    }
+
+    //useShowLog
+    let useShowLog = get(opt, 'useShowLog')
+    if (!isbol(useShowLog)) {
+        useShowLog = true
     }
 
     //ev
@@ -653,15 +667,19 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcCallfunAfterStart, msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcCallfunAfterStart, msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-callfun-afterStart'
+                    msgExit = `error at ${eventNameProcCallfunAfterStart}`
                 }
             }
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-afterStart', msg: msgExit })
                 return
             }
@@ -694,15 +712,19 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcCallfunGetNew, num: size(q), msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcCallfunGetNew, msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-callfun-getNew'
+                    msgExit = `error at ${eventNameProcCallfunGetNew}`
                 }
             }
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
@@ -725,22 +747,28 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcCallfunGetCurrent, num: size(q), msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcCallfunGetCurrent, msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-callfun-getCurrent'
+                    msgExit = `error at ${eventNameProcCallfunGetCurrent}`
                 }
             }
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
 
             //check, itemsAtt第1次執行預期一定有數據, 第n次執行無數據視為非預期被清空須報錯
             if (size(itemsAtt) === 0) {
-                console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: 'no data' })
                 return
             }
@@ -763,7 +791,7 @@ let WDataScheduler = async(opt = {}) => {
             let r = null
             if (true) {
                 try {
-                    srLogInfo({ event: 'proc-compare', msg: 'start...' })
+                    srLogInfo({ event: eventNameProcCompare, msg: 'start...' })
 
                     //ltdtSrc, ltdtTar
                     let ltdtSrc = itemsAtt
@@ -783,25 +811,31 @@ let WDataScheduler = async(opt = {}) => {
                     let numDiff = size(r.diff)
                     let numSame = size(r.same)
 
-                    srLogInfo({ event: 'proc-compare', numRemove: numDel, numAdd, numModify: numDiff, numSame, msg: 'done' })
+                    srLogInfo({ event: eventNameProcCompare, numRemove: numDel, numAdd, numModify: numDiff, numSame, msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
-                    srLogError({ event: 'proc-compare', msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-compare'
+                    if (useShowLog) {
+                        console.log(err)
+                    }
+                    srLogError({ event: eventNameProcCompare, msg: getErrorMessage(err) })
+                    msgExit = `error at ${eventNameProcCompare}`
                 }
             }
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
 
             //check
             if (!iseobj(r)) {
-                console.log(`can not calculate the difference, task canceled`) //無法計算當前取得與已儲存數據之差異, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`can not calculate the difference, task canceled`) //無法計算當前取得與已儲存數據之差異, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: 'can not calculate the difference between the data before and after' })
                 return
             }
@@ -835,9 +869,11 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-remove-callfun-remove'
+                    msgExit = `error at ${eventNameProcRemoveCallfunRemove}`
                 }
 
                 //check
@@ -882,16 +918,20 @@ let WDataScheduler = async(opt = {}) => {
 
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-remove-callfun-remove'
+                    msgExit = `error at ${eventNameProcRemoveCallfunRemove}`
                 }
 
             })
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
@@ -918,9 +958,11 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-add-callfun-add'
+                    msgExit = `error at ${eventNameProcAddCallfunAdd}`
                 }
 
                 //check
@@ -964,16 +1006,20 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-add-callfun-add'
+                    msgExit = `error at ${eventNameProcAddCallfunAdd}`
                 }
 
             })
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
@@ -1000,9 +1046,11 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-diff-callfun-modify'
+                    msgExit = `error at ${eventNameProcDiffCallfunModify}`
                 }
 
                 //check
@@ -1024,16 +1072,20 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-diff-callfun-modify'
+                    msgExit = `error at ${eventNameProcDiffCallfunModify}`
                 }
 
             })
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
                 return
             }
@@ -1062,15 +1114,19 @@ let WDataScheduler = async(opt = {}) => {
                     srLogInfo({ event: eventNameProcCallfunBeforeEnd, msg: 'done' })
                 }
                 catch (err) {
-                    console.log(err)
+                    if (useShowLog) {
+                        console.log(err)
+                    }
                     srLogError({ event: eventNameProcCallfunBeforeEnd, msg: getErrorMessage(err) })
-                    msgExit = 'error at proc-callfun-beforeEnd'
+                    msgExit = `error at ${eventNameProcCallfunBeforeEnd}`
                 }
             }
 
             //check
             if (isestr(msgExit)) {
-                console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                if (useShowLog) {
+                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
+                }
                 srLogInfo({ event: 'cancel-stage-beforeEnd', msg: msgExit })
                 return
             }
@@ -1087,7 +1143,9 @@ let WDataScheduler = async(opt = {}) => {
 
     let pmDetect = coreDetect()
         .catch((err) => {
-            console.log(err)
+            if (useShowLog) {
+                console.log(err)
+            }
             srLogError({ event: eventNameProcCoreDetect, msg: getErrorMessage(err) })
         })
 
@@ -1177,7 +1235,9 @@ let WDataScheduler = async(opt = {}) => {
 
     let pmRetake = coreRetake()
         .catch((err) => {
-            console.log(err)
+            if (useShowLog) {
+                console.log(err)
+            }
             srLogError({ event: eventNameProcCoreRetake, msg: getErrorMessage(err) })
         })
 

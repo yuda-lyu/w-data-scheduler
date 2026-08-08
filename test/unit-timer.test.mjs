@@ -1,5 +1,3 @@
-import fs from 'fs'
-import _ from 'lodash-es'
 import w from 'wsemi'
 import assert from 'assert'
 import WDataScheduler from '../src/WDataScheduler.mjs'
