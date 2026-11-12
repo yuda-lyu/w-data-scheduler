@@ -4,6 +4,7 @@ import size from 'lodash-es/size.js'
 import iseobj from 'wsemi/src/iseobj.mjs'
 import isestr from 'wsemi/src/isestr.mjs'
 import isp0int from 'wsemi/src/isp0int.mjs'
+import isarr from 'wsemi/src/isarr.mjs'
 import isbol from 'wsemi/src/isbol.mjs'
 import isfun from 'wsemi/src/isfun.mjs'
 import ispm from 'wsemi/src/ispm.mjs'
@@ -35,8 +36,8 @@ import ot from 'dayjs'
  * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入儲存來源端之觸發任務狀態資料夾字串，預設'./_taskCpSrc'
  * @param {Object} [opt.srLog=null] 輸入事件紀錄物件，需提供函數info、warn與error，各接收一紀錄物件，供偵測數據變更時紀錄各階段事件，未提供時不進行紀錄，其中warn目前保留未使用，預設null
  * @param {Boolean} [opt.useShowLog=true] 輸入是否於偵測過程將錯誤與取消訊息輸出至console布林值，預設true
- * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，回傳資料陣列，為必須，預設null
- * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，回傳資料陣列，為必須，預設null
+ * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，須回傳資料陣列(可為async函數，await後須為陣列)，回傳非陣列(含undefined與null)視為錯誤，記錄錯誤事件(訊息不帶回傳值)並取消本輪，不進行比對與後續連動處理，為必須，預設null
+ * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，須回傳資料陣列(可為async函數，await後須為陣列)，首次執行尚無既有數據時須回傳空陣列[]，回傳非陣列(含undefined與null)視為錯誤，記錄錯誤事件(訊息不帶回傳值)並取消本輪，不進行比對與後續連動處理，不會視同空陣列，為必須，預設null
  * @param {Function} [opt.funAdd=null] 輸入當有新資料時，需要連動處理之函數，預設null
  * @param {Function} [opt.funModify=null] 輸入當有資料需更新時，需要連動處理之函數，預設null
  * @param {Function} [opt.funRemove=null] 輸入當有資料需刪除時，需要連動處理之函數，預設null
@@ -706,6 +707,11 @@ let WDataScheduler = async(opt = {}) => {
                         q = await q
                     }
 
+                    //check, 須回傳陣列, 非陣列視為錯誤(ltdtDiffByKey對非陣列輸入會回空結果而靜默不做任何同步), 訊息不帶回傳值
+                    if (!isarr(q)) {
+                        throw new Error(`funGetNew must return an array`)
+                    }
+
                     //save
                     itemsAtt = q
 
@@ -739,6 +745,11 @@ let WDataScheduler = async(opt = {}) => {
                     let q = funGetCurrent()
                     if (ispm(q)) {
                         q = await q
+                    }
+
+                    //check, 須回傳陣列(首次執行尚無既有數據時須回傳[]), 非陣列視為錯誤而不視同[](ltdtDiffByKey對非陣列輸入會回空結果而靜默不做任何同步), 訊息不帶回傳值
+                    if (!isarr(q)) {
+                        throw new Error(`funGetCurrent must return an array`)
                     }
 
                     //save

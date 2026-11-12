@@ -116,3 +116,14 @@ ev.on('change', (msg) => {
 // change { event: 'proc-add-callfun-add', id: '114116', msg: 'done' }
 // change { event: 'end', msg: 'done' }
 ```
+
+## Breaking changes
+
+### `funGetNew` and `funGetCurrent` must return an array
+Applies to the release after 1.0.51.
+
+The value returned by `funGetNew` and `funGetCurrent` (after `await`) must be an array.
+
+- **Before**: a non-array value (`undefined`, `null`, a string, a number, an object) was not rejected. It was either treated like an empty array, or (for `funGetNew`) canceled as `no data`, as if the data had been emptied unexpectedly. With the `ltdtDiffByKey` of the next `wsemi` release, which returns an empty result for non-array input, a non-array `funGetCurrent` would even make a round silently synchronize nothing.
+- **Now**: the round is canceled. An error event is recorded at the stage of the offending function (event `proc-callfun-getNew` or `proc-callfun-getCurrent` by default) with the message `funGetNew must return an array` or `funGetCurrent must return an array` (the returned value is not included in the message). The comparison does not run and `funAdd`, `funModify` and `funRemove` are not called.
+- **Migration**: when there is no existing data (the first run), `funGetCurrent` must return `[]` instead of `undefined` or `null`; `[]` is still valid and all data of `funGetNew` are added as before. An empty array returned by `funGetNew` keeps its previous behavior (the round is canceled as "no data").
