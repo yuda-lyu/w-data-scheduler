@@ -1176,11 +1176,11 @@ let WDataScheduler = async(opt = {}) => {
         //timeNow
         let timeNow = ot()
 
-        //vfpsRemove
-        let vfpsRemove = fsTreeFolder(fdTagRemove, 1)
+        //vfpsRemove, 刪除tag皆平放於fdTagRemove下, 僅列舉第1層(wsemi 1.9.80起第2參數為opt, 未給levelLimit則窮舉全部層級)
+        let vfpsRemove = fsTreeFolder(fdTagRemove, { levelLimit: 1 })
 
         // //vfpsModify
-        // let vfpsModify = fsTreeFolder(fdTagModify, 1)
+        // let vfpsModify = fsTreeFolder(fdTagModify, { levelLimit: 1 })
 
         //check
         // if (size(vfpsRemove) === 0 && size(vfpsModify) === 0) {

@@ -8,6 +8,7 @@
 | 編號 | 規則 | 狀態 |
 |---|---|---|
 | R-01 | `funGetNew`、`funGetCurrent` 之回傳(`await` 後)須為陣列;非陣列取消本輪並記錄錯誤 | 已做 |
+| R-02 | 呼叫 wsemi 列舉函數(`fsTreeFolder` 等)須以設定物件明寫層數意圖,不用舊式數字或省略第 2 參數 | 已做 |
 
 ## R-01 `funGetNew`／`funGetCurrent` 回傳須為陣列
 
@@ -28,3 +29,21 @@
 **判準**:`test/unit-funGetReturn.test.mjs` 全綠;植入「移除任一檢查／弱化為 `!q`、僅 `undefined/null`、`typeof !== 'object'`／訊息帶值／訊息互換／非陣列視同 `[]`／`[]` 誤判為錯誤」皆須轉紅(變異證據見 `sgud/exp/experience.md`).
 
 **測試對照**:`test/unit-funGetReturn.test.mjs`——兩函數 × 六種非陣列值(`undefined`、`null`、`'x'`、`1`、`{}`、單筆資料物件)、非 async 函數各一、`useShowLog` 預設為 true 之 console 輸出與訊息不帶值、`funGetCurrent` 回 `[]` 全數新增、`funGetNew` 回 `[]` 維持 `no data`.
+
+## R-02 wsemi 列舉函數須以設定物件明寫層數意圖
+
+**規則**
+1. wsemi 1.9.80 起,`fsTreeFolder`、`fsTreeFolderWithHash`、`fsGetFilesInFolder`、`fsGetFilesWithHashInFolder`、`fsGetFoldersInFolder`(及各 `*Core`)之第 2 參數為設定物件 `opt = {}`:`opt.levelLimit` 為有效正整數才限層,**未給即窮舉全部層級**(舊版第 2 參數為層數、預設 1 層);第 2 參數給了而非物件(舊寫法之數字)拋 `invalid opt: must be an object`,第 3 個引數有給拋 `invalid arguments: must be fd and opt only`.
+2. 本套件呼叫這類函數時,第 2 參數一律為物件且**明寫層數意圖**:要第 1 層者寫 `{ levelLimit: 1 }`;本意窮舉者可省略第 2 參數,但須在呼叫處註明為刻意窮舉.不寫舊式數字,不依賴省略即第 1 層.
+3. 刪除 tag 皆平放於 `fdTagRemove` 下(`addTagCore` 以 `${fdTag}/${fn}` 寫入),防抖補掃(`coreRetake`)只需第 1 層,故為 `{ levelLimit: 1 }`;不得改為窮舉(會多讀子夾,子層之檔名亦會被帶入 `checkTagRemove(v.name)` 而與第 1 層之 tag 同名者重複處理).
+
+**why**:省略第 2 參數之舊寫法於新版**靜默**由第 1 層變窮舉(無從以錯誤攔截),數字寫法則於補掃階段才拋錯(以 `proc-coreRetake` 之 error 事件呈現,不影響主流程,補掃卻靜默失效、刪除 tag 不再釋放).
+
+**站點全集**(盤點指令:`git grep -nE "\b(fsTreeFolder|fsTreeFolderWithHash|fsGetFilesInFolder|fsGetFilesWithHashInFolder|fsGetFoldersInFolder)(Core)?\s*\(" -- . ':!dist' ':!docs'`)
+- `src/WDataScheduler.mjs` `coreRetake` 之 `fsTreeFolder(fdTagRemove, { levelLimit: 1 })`:1 站,已套(第 1 層)
+- 同檔註解內之 `fsTreeFolder(fdTagModify, { levelLimit: 1 })`(已停用之變更 tag 掃描):1 處,已改寫為新寫法,不計站
+- 共 1 站(src);根目錄範例 `g*.mjs`、README、JSDoc 無此類呼叫
+
+**判準**:盤點指令之每一處第 2 參數皆為物件;`test/unit-retakeLevel.test.mjs` 全綠;植入「改回舊式數字／省略／`levelLimit: 2`／`null`／`0`／空物件」皆須轉紅(變異證據見 `sgud/exp/experience.md`).
+
+**測試對照**:`test/unit-retakeLevel.test.mjs`——①自檢:`fsTreeFolder` 窮舉會讀子夾(`fs.readdirSync` 呼叫路徑)、`{ levelLimit: 1 }` 不讀;②`coreRetake` 之補掃:`fdTagRemove` 內另放 `sub/`、`sub/deeper/` 之檔,補掃期間 `readdirSync` 讀了 `fdTagRemove` 本身而不讀其子夾,第 1 層之超時 tag 仍被釋放(`proc-retake-remove` 之 `release-tag`、`done`),且無 error 事件.行為層無法分辨第 1 層與窮舉(子層之檔名不對應任何 tag),故以 `readdirSync` 之呼叫路徑為可觀察量.
