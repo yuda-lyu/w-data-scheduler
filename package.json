@@ -1,9 +1,9 @@
 {
   "name": "w-data-scheduler",
-  "version": "1.0.71",
+  "version": "1.0.72",
   "main": "dist/w-data-scheduler.umd.js",
   "dependencies": {
-    "wsemi": "^1.9.78"
+    "wsemi": "^1.9.79"
   },
   "devDependencies": {
     "w-package-tools": "^1.1.31"
