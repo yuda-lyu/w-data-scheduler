@@ -76,20 +76,24 @@ import ot from 'dayjs'
 /**
  * 基於檔案之數據變更驅動任務建構器
  *
+ * 每輪依序取得最新數據與既有數據、比對差異，再逐項呼叫funRemove、funAdd、funModify。逐項處理中任一項失敗（函數同步拋錯、回傳之Promise被reject，或函數成功而其後任務狀態更新失敗）不中止本輪：其餘項照常處理，該項記錄error事件並列入本輪結果之failed，逐項處理結束後另發出1筆warn事件fail-items-stage-main。失敗項之任務狀態不更新，只要funGetCurrent未將其視為已完成，下輪仍比對出差異而重試，故funRemove、funAdd、funModify須可重複執行。取清單與比對階段（funAfterStart、funGetNew、funGetCurrent、比對）之錯誤則取消本輪，不進入逐項處理
+ *
+ * 本輪結果物件之格式為{ success: { add, modify, remove }, failed, msgCancel }：success之各陣列為處理成功之主鍵值；failed為失敗項陣列，各項為{ id, mode, event, msg }，id為主鍵值，mode為'add'、'modify'或'remove'，event為該階段之事件名，msg為固定詞彙（'funAdd failed'、'funModify failed'、'funRemove failed'或'failed to update task state'），原錯誤訊息只記於該項之error事件；msgCancel為本輪未進入逐項處理時之取消訊息（階段層級錯誤、'no data'、'no difference'等），否則為空字串。判定某項是否完成應以success為準，未列於success者一律視為未完成。funBeforeEnd與end事件之監聽函數各收到一份獨立之結果物件
+ *
  * @param {Object} [opt={}] 輸入設定物件，預設{}
  * @param {String} [opt.keyId='keyId'] 輸入各筆數據之主鍵字串，預設'keyId'
  * @param {String} [opt.fdTagRemove='./_tagRemove'] 輸入暫存標記為刪除數據資料夾字串，預設'./_tagRemove'
  * @param {String} [opt.fdTaskCpActualSrc='./_taskCpActualSrc'] 輸入儲存來源端之完整任務狀態資料夾字串，預設'./_taskCpActualSrc'
  * @param {String} [opt.fdTaskCpSrc='./_taskCpSrc'] 輸入儲存來源端之觸發任務狀態資料夾字串，預設'./_taskCpSrc'
- * @param {Object} [opt.srLog=null] 輸入事件紀錄物件，需提供函數info、warn與error，各接收一紀錄物件，供偵測數據變更時紀錄各階段事件，未提供時不進行紀錄，其中warn目前保留未使用，預設null
+ * @param {Object} [opt.srLog=null] 輸入事件紀錄物件，需提供函數info、warn與error，各接收一紀錄物件，供偵測數據變更時紀錄各階段事件，未提供時不進行紀錄，其中warn用於本輪有逐項處理失敗項時之彙總紀錄（事件fail-items-stage-main，欄位numFail、items與msg），預設null
  * @param {Boolean} [opt.useShowLog=true] 輸入是否於偵測過程將錯誤與取消訊息輸出至console布林值，預設true
  * @param {Function} [opt.funGetNew=null] 輸入取得最新數據之hash數據處理函數，須回傳資料陣列(可為async函數，await後須為陣列)，回傳非陣列(含undefined與null)視為錯誤，記錄錯誤事件(訊息不帶回傳值)並取消本輪，不進行比對與後續連動處理，為必須，預設null
  * @param {Function} [opt.funGetCurrent=null] 輸入取得既有數據之hash數據處理函數，須回傳資料陣列(可為async函數，await後須為陣列)，首次執行尚無既有數據時須回傳空陣列[]，回傳非陣列(含undefined與null)視為錯誤，記錄錯誤事件(訊息不帶回傳值)並取消本輪，不進行比對與後續連動處理，不會視同空陣列，為必須，預設null
- * @param {Function} [opt.funAdd=null] 輸入當有新資料時，需要連動處理之函數，預設null
- * @param {Function} [opt.funModify=null] 輸入當有資料需更新時，需要連動處理之函數，預設null
- * @param {Function} [opt.funRemove=null] 輸入當有資料需刪除時，需要連動處理之函數，預設null
+ * @param {Function} [opt.funAdd=null] 輸入當有新資料時，需要連動處理之函數，接收該筆新資料，可為async函數，須可重複執行；拋錯或reject時僅該筆失敗，其餘照常處理；未給予時各筆視為成功，預設null
+ * @param {Function} [opt.funModify=null] 輸入當有資料需更新時，需要連動處理之函數，接收該筆最新資料，可為async函數，須可重複執行；拋錯或reject時僅該筆失敗，其餘照常處理；未給予時各筆視為成功，預設null
+ * @param {Function} [opt.funRemove=null] 輸入當有資料需刪除時，需要連動處理之函數，接收該筆既有資料，可為async函數，須可重複執行；拋錯或reject時僅該筆失敗，其餘照常處理；未給予時各筆視為成功，預設null
  * @param {Function} [opt.funAfterStart=null] 輸入偵測程序剛開始啟動時，需要處理之函數，預設null
- * @param {Function} [opt.funBeforeEnd=null] 輸入偵測程序要結束前，需要處理之函數，預設null
+ * @param {Function} [opt.funBeforeEnd=null] 輸入偵測程序要結束前，需要處理之函數，不論前面各階段有無錯誤皆會呼叫，接收本輪結果物件{ success, failed, msgCancel }（格式見上方說明），可為async函數，預設null
  * @param {Number} [opt.timeToleranceRemove=0] 輸入刪除任務之防抖時長，單位ms，預設0，代表不使用
  * @param {String} [opt.eventNameProcCallfunGetNew='proc-callfun-getNew'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-callfun-getNew'
  * @param {String} [opt.eventNameProcCallfunGetCurrent='proc-callfun-getCurrent'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-callfun-getCurrent'
@@ -102,7 +106,7 @@ import ot from 'dayjs'
  * @param {String} [opt.eventNameProcCoreDetect='proc-coreDetect'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-coreDetect'
  * @param {String} [opt.eventNameProcRetakeRemove='proc-retake-remove'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-retake-remove'
  * @param {String} [opt.eventNameProcCoreRetake='proc-coreRetake'] 輸入觸發事件與紀錄log事件名稱字串，預設'proc-coreRetake'
- * @returns {Object} 回傳事件物件，可呼叫函數on監聽change與end事件
+ * @returns {Object} 回傳事件物件，可呼叫函數on監聽change與end事件，end事件之監聽函數接收本輪結果物件（同funBeforeEnd所接收者之內容）
  * @example
  *
  * import w from 'wsemi'
@@ -639,6 +643,69 @@ let WDataScheduler = async(opt = {}) => {
         return r
     }
 
+    //safeCall, 逐項處理階段之紀錄與輸出各自隔離, 通道失效(同步拋錯)不得影響該項之結果與其餘項之處理
+    let safeCall = (fn) => {
+        try {
+            fn()
+        }
+        catch (err) {}
+    }
+
+    //srLogInfoItem
+    let srLogInfoItem = (o) => {
+        safeCall(() => {
+            srLogInfo(o)
+        })
+    }
+
+    //resRound, 本輪結果: success為逐項處理成功之主鍵值, failed為逐項處理失敗之項, msgCancel為本輪未進入逐項處理之取消訊息
+    let resRound = {
+        success: {
+            add: [],
+            modify: [],
+            remove: [],
+        },
+        failed: [],
+        msgCancel: '',
+    }
+
+    //getResRound, 回傳本輪結果之副本, 各接收端所得互不影響
+    let getResRound = () => {
+        return {
+            success: {
+                add: [...resRound.success.add],
+                modify: [...resRound.success.modify],
+                remove: [...resRound.success.remove],
+            },
+            failed: resRound.failed.map((v) => {
+                return { ...v }
+            }),
+            msgCancel: resRound.msgCancel,
+        }
+    }
+
+    //failItem, 記錄逐項處理失敗之項, 不中止本輪(其餘項照常處理); msg為固定詞彙, 原錯誤訊息僅記於error事件
+    let failItem = (mode, event, id, msg, err) => {
+        resRound.failed.push({ id, mode, event, msg })
+        if (useShowLog) {
+            safeCall(() => {
+                console.log(err)
+            })
+        }
+        safeCall(() => {
+            srLogError({ event, [keyId]: id, msg: getErrorMessage(err) })
+        })
+    }
+
+    //cancelStageMain, 主階段取消(不進入逐項處理或無可處理者)
+    let cancelStageMain = (msg) => {
+        resRound.msgCancel = msg
+        srLogInfo({ event: 'cancel-stage-main', msg })
+    }
+
+    //msgFailTaskState, 逐項處理中使用端函數成功而其後任務狀態更新失敗之固定訊息
+    let msgFailTaskState = 'failed to update task state'
+
     //coreDetect
     let otkActualSrc = null
     let otkSrc = null
@@ -725,6 +792,7 @@ let WDataScheduler = async(opt = {}) => {
 
             //check
             if (isestr(msgExit)) {
+                resRound.msgCancel = msgExit //開始前階段有錯誤, 主階段不執行
                 if (useShowLog) {
                     console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
                 }
@@ -778,7 +846,7 @@ let WDataScheduler = async(opt = {}) => {
                 if (useShowLog) {
                     console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
                 }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
+                cancelStageMain(msgExit)
                 return
             }
 
@@ -818,7 +886,7 @@ let WDataScheduler = async(opt = {}) => {
                 if (useShowLog) {
                     console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
                 }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
+                cancelStageMain(msgExit)
                 return
             }
 
@@ -827,7 +895,7 @@ let WDataScheduler = async(opt = {}) => {
                 if (useShowLog) {
                     console.log(`invalid data, task canceled`) //程序發生錯誤, 不進行後續動作
                 }
-                srLogInfo({ event: 'cancel-stage-main', msg: 'no data' })
+                cancelStageMain('no data')
                 return
             }
 
@@ -885,7 +953,7 @@ let WDataScheduler = async(opt = {}) => {
                 if (useShowLog) {
                     console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
                 }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
+                cancelStageMain(msgExit)
                 return
             }
 
@@ -894,27 +962,25 @@ let WDataScheduler = async(opt = {}) => {
                 if (useShowLog) {
                     console.log(`can not calculate the difference, task canceled`) //無法計算當前取得與已儲存數據之差異, 不進行後續動作
                 }
-                srLogInfo({ event: 'cancel-stage-main', msg: 'can not calculate the difference between the data before and after' })
+                cancelStageMain('can not calculate the difference between the data before and after')
                 return
             }
 
             //check
             if (size(r.del) === 0 &amp;&amp; size(r.add) === 0 &amp;&amp; size(r.diff) === 0) {
                 //當前取得與已儲存數據無差異, 不進行後續動作
-                srLogInfo({ event: 'cancel-stage-main', msg: 'no difference' })
+                cancelStageMain('no difference')
                 return
             }
 
             //trigger del
             await pmSeries(r.del, async(v) => {
 
-                //check
-                if (isestr(msgExit)) {
-                    return
-                }
+                //id, 呼叫使用端函數前取得, 使失敗與成功紀錄不受函數改動v之影響
+                let id = v[keyId]
 
                 try {
-                    srLogInfo({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'start...' })
+                    srLogInfoItem({ event: eventNameProcRemoveCallfunRemove, [keyId]: id, msg: 'start...' })
 
                     //funRemove
                     if (isfun(funRemove)) {
@@ -927,15 +993,7 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcRemoveCallfunRemove}`
-                }
-
-                //check
-                if (isestr(msgExit)) {
+                    failItem('remove', eventNameProcRemoveCallfunRemove, id, 'funRemove failed', err)
                     return
                 }
 
@@ -951,7 +1009,7 @@ let WDataScheduler = async(opt = {}) => {
                         //otkSrc.remove
                         otkSrc.remove(v[keyId])
 
-                        srLogInfo({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'done' })
+                        srLogInfoItem({ event: eventNameProcRemoveCallfunRemove, [keyId]: id, msg: 'done' })
                     }
                     else {
                         //若有給予刪除誤差
@@ -969,41 +1027,29 @@ let WDataScheduler = async(opt = {}) => {
                             //addTagRemove
                             await addTagRemove(v[keyId])
 
-                            srLogInfo({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: 'add-tag' })
+                            srLogInfoItem({ event: eventNameProcRemoveCallfunRemove, [keyId]: id, msg: 'add-tag' })
                         }
 
                     }
 
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcRemoveCallfunRemove, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcRemoveCallfunRemove}`
+                    failItem('remove', eventNameProcRemoveCallfunRemove, id, msgFailTaskState, err)
+                    return
                 }
+
+                resRound.success.remove.push(id)
 
             })
-
-            //check
-            if (isestr(msgExit)) {
-                if (useShowLog) {
-                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-                }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
-                return
-            }
 
             //trigger add
             await pmSeries(r.add, async(v) => {
 
-                //check
-                if (isestr(msgExit)) {
-                    return
-                }
+                //id
+                let id = v[keyId]
 
                 try {
-                    srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'start...' })
+                    srLogInfoItem({ event: eventNameProcAddCallfunAdd, [keyId]: id, msg: 'start...' })
 
                     //funAdd
                     if (isfun(funAdd)) {
@@ -1016,15 +1062,7 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcAddCallfunAdd}`
-                }
-
-                //check
-                if (isestr(msgExit)) {
+                    failItem('add', eventNameProcAddCallfunAdd, id, 'funAdd failed', err)
                     return
                 }
 
@@ -1053,7 +1091,7 @@ let WDataScheduler = async(opt = {}) => {
                             //releaseTagRemove
                             await releaseTagRemove(v[keyId])
 
-                            srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'release-tag' })
+                            srLogInfoItem({ event: eventNameProcAddCallfunAdd, [keyId]: id, msg: 'release-tag' })
                         }
                         else {
                             //若非位於刪除清單, 不處理
@@ -1061,37 +1099,25 @@ let WDataScheduler = async(opt = {}) => {
 
                     }
 
-                    srLogInfo({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: 'done' })
+                    srLogInfoItem({ event: eventNameProcAddCallfunAdd, [keyId]: id, msg: 'done' })
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcAddCallfunAdd, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcAddCallfunAdd}`
+                    failItem('add', eventNameProcAddCallfunAdd, id, msgFailTaskState, err)
+                    return
                 }
+
+                resRound.success.add.push(id)
 
             })
-
-            //check
-            if (isestr(msgExit)) {
-                if (useShowLog) {
-                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-                }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
-                return
-            }
 
             //trigger diff
             await pmSeries(r.diff, async(v) => {
 
-                //check
-                if (isestr(msgExit)) {
-                    return
-                }
+                //id
+                let id = v[keyId]
 
                 try {
-                    srLogInfo({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'start...' })
+                    srLogInfoItem({ event: eventNameProcDiffCallfunModify, [keyId]: id, msg: 'start...' })
 
                     //funModify
                     if (isfun(funModify)) {
@@ -1104,15 +1130,7 @@ let WDataScheduler = async(opt = {}) => {
                     // srLogInfo({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcDiffCallfunModify}`
-                }
-
-                //check
-                if (isestr(msgExit)) {
+                    failItem('modify', eventNameProcDiffCallfunModify, id, 'funModify failed', err)
                     return
                 }
 
@@ -1127,25 +1145,20 @@ let WDataScheduler = async(opt = {}) => {
                     //otkSrc.set, 因可能有非預期中斷與重啟問題, 故一律呼叫otkSrc.set, 確保跟實際otkActualSrc.set能有一致任務清單
                     otkSrc.set(v[keyId], hash)
 
-                    srLogInfo({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: 'done' })
+                    srLogInfoItem({ event: eventNameProcDiffCallfunModify, [keyId]: id, msg: 'done' })
                 }
                 catch (err) {
-                    if (useShowLog) {
-                        console.log(err)
-                    }
-                    srLogError({ event: eventNameProcDiffCallfunModify, [keyId]: v[keyId], msg: getErrorMessage(err) })
-                    msgExit = `error at ${eventNameProcDiffCallfunModify}`
+                    failItem('modify', eventNameProcDiffCallfunModify, id, msgFailTaskState, err)
+                    return
                 }
+
+                resRound.success.modify.push(id)
 
             })
 
-            //check
-            if (isestr(msgExit)) {
-                if (useShowLog) {
-                    console.log(`error occurred, task canceled`) //程序發生錯誤, 不進行後續動作
-                }
-                srLogInfo({ event: 'cancel-stage-main', msg: msgExit })
-                return
+            //check, 本輪有逐項處理失敗之項時彙總紀錄
+            if (size(resRound.failed) > 0) {
+                srLogWarn({ event: 'fail-items-stage-main', numFail: size(resRound.failed), items: getResRound().failed, msg: 'some items failed' })
             }
 
             return null
@@ -1163,8 +1176,8 @@ let WDataScheduler = async(opt = {}) => {
                 try {
                     srLogInfo({ event: eventNameProcCallfunBeforeEnd, msg: 'start...' })
 
-                    //funBeforeEnd
-                    let q = funBeforeEnd()
+                    //funBeforeEnd, 傳入本輪結果, 供使用端僅對成功項做後續處理
+                    let q = funBeforeEnd(getResRound())
                     if (ispm(q)) {
                         q = await q
                     }
@@ -1302,7 +1315,7 @@ let WDataScheduler = async(opt = {}) => {
     //emit end
     Promise.all([pmDetect, pmRetake])
         .finally(() => {
-            ev.emit('end')
+            ev.emit('end', getResRound())
         })
 
     return ev
@@ -1324,7 +1337,7 @@ export default WDataScheduler
 <br class="clear">
 
 <footer>
-    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Fri Nov 27 2026 14:35:53 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.5</a> on Sat Nov 28 2026 19:18:05 GMT+0800 (台北標準時間) using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
 </footer>
 
 <script>prettyPrint();</script>
