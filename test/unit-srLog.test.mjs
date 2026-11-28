@@ -211,7 +211,7 @@ describe('srLog', function() {
         { type: 'info', event: 'end', msg: 'done' },
     ]
 
-    //msChangeError, funAdd拋錯時各階段所發送之紀錄
+    //msChangeError, funAdd拋錯時各階段所發送之紀錄, 單項失敗不中止本輪(R-03): 不發出cancel-stage-main與cancel-stage-beforeEnd, 逐項處理後以warn事件彙總失敗項
     let msChangeError = [
         { type: 'info', event: 'start', msg: 'running...' },
         { type: 'info', event: 'proc-callfun-getNew', msg: 'start...' },
@@ -230,8 +230,13 @@ describe('srLog', function() {
         },
         { type: 'info', event: 'proc-add-callfun-add', id: '114116', msg: 'start...' },
         { type: 'error', event: 'proc-add-callfun-add', id: '114116', msg: msgErrFunAdd },
-        { type: 'info', event: 'cancel-stage-main', msg: 'error at proc-add-callfun-add' },
-        { type: 'info', event: 'cancel-stage-beforeEnd', msg: 'error at proc-add-callfun-add' },
+        {
+            type: 'warn',
+            event: 'fail-items-stage-main',
+            numFail: 1,
+            items: [{ id: '114116', mode: 'add', event: 'proc-add-callfun-add', msg: 'funAdd failed' }],
+            msg: 'some items failed'
+        },
         { type: 'info', event: 'end', msg: 'done' },
     ]
 
@@ -281,10 +286,16 @@ describe('srLog', function() {
         assert.strict.deepEqual(pickByType(r.msChange, 'error'), rr)
     })
 
-    it('test srLog: funAdd拋錯時, 後續取消與結束階段仍紀錄於srLog.info', async () => {
+    it('test srLog: funAdd拋錯時, 後續結束階段仍紀錄於srLog.info', async () => {
         let r = await test({ tag: 'c6', errFunAdd: true })
         let rr = pickByType(msChangeError, 'info')
         assert.strict.deepEqual(r.msInfo.map(rmTime), rr)
+    })
+
+    it('test srLog: funAdd拋錯時, 失敗項彙總紀錄於srLog.warn', async () => {
+        let r = await test({ tag: 'c15', errFunAdd: true })
+        let rr = pickByType(msChangeError, 'warn')
+        assert.strict.deepEqual(r.msWarn, rr)
     })
 
     it('test srLog: 僅提供info時, 未提供之error不影響change事件發送', async () => {
@@ -312,9 +323,15 @@ describe('srLog', function() {
         return { numErr, numCancel, numAll: _.size(ms) }
     }
 
-    it('test srLog: useShowLog預設為true時, 錯誤與取消訊息輸出至console', async () => {
+    it('test srLog: useShowLog預設為true時, 逐項錯誤輸出至console, 單項失敗不取消故無取消訊息', async () => {
         let r = await test({ tag: 'c9', errFunAdd: true })
-        let rr = { numErr: 1, numCancel: 2, numAll: 3 } //funAdd之catch輸出1次錯誤, 主階段與結束前階段各輸出1次取消訊息
+        let rr = { numErr: 1, numCancel: 0, numAll: 1 } //funAdd之失敗輸出1次錯誤, 本輪未取消故無取消訊息
+        assert.strict.deepEqual(cntConsole(r.msConsole), rr)
+    })
+
+    it('test srLog: useShowLog預設為true時, 階段層級錯誤之錯誤與取消訊息輸出至console', async () => {
+        let r = await test({ tag: 'c16', errFunGetNew: true })
+        let rr = { numErr: 1, numCancel: 2, numAll: 3 } //funGetNew之catch輸出1次錯誤, 主階段與結束前階段各輸出1次取消訊息
         assert.strict.deepEqual(cntConsole(r.msConsole), rr)
     })
 

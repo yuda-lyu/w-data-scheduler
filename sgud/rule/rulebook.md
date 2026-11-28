@@ -9,6 +9,7 @@
 |---|---|---|
 | R-01 | `funGetNew`、`funGetCurrent` 之回傳(`await` 後)須為陣列;非陣列取消本輪並記錄錯誤 | 已做 |
 | R-02 | 呼叫 wsemi 列舉函數(`fsTreeFolder` 等)須以設定物件明寫層數意圖,不用舊式數字或省略第 2 參數 | 已做 |
+| R-03 | 逐項處理(`funRemove`、`funAdd`、`funModify`)之單項失敗不中止本輪;失敗項記錄並下輪重試;本輪結果交 `funBeforeEnd` 與 `end` | 已做(防抖補掃不在範圍,見狀態) |
 
 ## R-01 `funGetNew`／`funGetCurrent` 回傳須為陣列
 
@@ -47,3 +48,28 @@
 **判準**:盤點指令之每一處第 2 參數皆為物件;`test/unit-retakeLevel.test.mjs` 全綠;植入「改回舊式數字／省略／`levelLimit: 2`／`null`／`0`／空物件」皆須轉紅(變異證據見 `sgud/exp/experience.md`).
 
 **測試對照**:`test/unit-retakeLevel.test.mjs`——①自檢:`fsTreeFolder` 窮舉會讀子夾(`fs.readdirSync` 呼叫路徑)、`{ levelLimit: 1 }` 不讀;②`coreRetake` 之補掃:`fdTagRemove` 內另放 `sub/`、`sub/deeper/` 之檔,補掃期間 `readdirSync` 讀了 `fdTagRemove` 本身而不讀其子夾,第 1 層之超時 tag 仍被釋放(`proc-retake-remove` 之 `release-tag`、`done`),且無 error 事件.行為層無法分辨第 1 層與窮舉(子層之檔名不對應任何 tag),故以 `readdirSync` 之呼叫路徑為可觀察量.
+
+## R-03 逐項處理之單項失敗不中止本輪
+
+**規則**
+1. `src/WDataScheduler.mjs` `stageMain` 之三個逐項處理迴圈(`r.del`、`r.add`、`r.diff`):任一項之使用端函數同步拋錯或其 Promise 被 reject,或其後之任務狀態更新(`otkActualSrc`、`otkSrc`、刪除 tag)拋錯,只記該項失敗;不設 `msgExit`、不中止本輪,其餘項與其後階段照常處理.各項回呼不得向 `pmSeries` 拋錯(`pmSeries` 遇 reject 即停).
+2. 失敗以單一出口 `failItem(mode, event, id, msg, err)` 記錄:列入結果 `failed`(`{ id, mode, event, msg }`,`msg` 固定詞彙 `funRemove failed`／`funAdd failed`／`funModify failed`／`failed to update task state`,不含原錯誤訊息)、`console.log(err)`(`useShowLog`)、`srLogError({ event, [keyId]: id, msg: 原錯誤訊息 })`;呼叫後立即 `return`(不更新任務狀態、不列入 `success`).
+3. 兩段皆未拋錯才列入 `success[mode]`;`id` 取自呼叫使用端函數前之 `v[keyId]`.未給予 `funAdd` 等函數者視為成功.
+4. 逐項處理之紀錄與輸出各自隔離(`safeCall`、`srLogInfoItem`),通道(srLog、change 監聽函數、console)同步拋錯不影響各項結果與其餘項.
+5. 有失敗項時,三迴圈後發 1 筆 warn 事件 `fail-items-stage-main`(`numFail`、`items`〔失敗項副本〕、`msg: 'some items failed'`);全部成功時不發.
+6. 本輪結果 `{ success: { add, modify, remove }, failed, msgCancel }` 一律經 `getResRound()` 取副本交付:`funBeforeEnd(結果)` 與 `end` 事件各一份.`msgCancel` 於主階段每一取消站點(`cancelStageMain`)與開始前階段錯誤處設定,完成逐項處理者為 `''`.使用端以 `success` 判定已完成項.
+7. 階段層級(`funAfterStart`、`funGetNew`、`funGetCurrent`、比對、`no data`、`no difference`)之取消行為與事件不變.
+8. 失敗項之任務狀態不更新,重試由下輪比對達成;`funAdd`、`funModify`、`funRemove` 須可重複執行.JSDoc 與 README〈Breaking changes〉須載明.
+
+**why**:舊行為遇錯即停(`msgExit` 一經設定,其後各項與階段全部略過),一個永遠處理失敗之壞項使其後各項每輪被略過(Gitea #216 §2).
+
+**站點全集**(盤點指令:Grep `failItem\(|resRound\.success\.(add|modify|remove)\.push|cancelStageMain\(|msgCancel = |getResRound\(\)` 於 `src/`)
+- `failItem` 呼叫 6 站(三迴圈 × 使用端函數段與任務狀態段),已套
+- `success[mode].push` 3 站,已套
+- `cancelStageMain` 呼叫 6 站(getNew、getCurrent、無數據、比對、無法計算、無差異)＋開始前階段 `msgCancel` 1 站,已套
+- `getResRound()` 交付 3 站(warn 事件、`funBeforeEnd`、`end`),已套
+- 未套:`coreRetake` 之逐 tag 處理(刪除防抖補掃)遇錯仍中止其餘 tag(非 add／modify／remove 之逐項處理,見狀態〈已知缺口〉)
+
+**判準**:`test/unit-itemFail.test.mjs`、`test/unit-srLog.test.mjs` 全綠;單點變異(中止迴圈、漏記或誤記、固定訊息互換、缺 `return`、副本改為參照、缺傳結果、缺設 `msgCancel`、通道不隔離)皆須轉紅(變異證據見 `sgud/exp/experience.md`).
+
+**測試對照**:`test/unit-itemFail.test.mjs`——三階段 × 壞項在前／中／後、多個與全部失敗、同步拋錯／reject／非 Error 值／await 後拋錯、任務狀態更新失敗(三階段)、刪除防抖、紀錄與輸出通道失效、下輪重試至成功、結果之副本與 `keyId`、階段層級取消之結果;`test/unit-srLog.test.mjs`——失敗時之事件序列、warn 紀錄與 console 輸出.

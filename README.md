@@ -119,6 +119,30 @@ ev.on('change', (msg) => {
 
 ## Breaking changes
 
+### A failed item no longer cancels the round
+Applies to the release after 1.0.76.
+
+`funRemove`, `funAdd` and `funModify` are called item by item.
+
+- **Before**: when one item failed (the function threw or its promise was rejected, or updating the task state failed), the remaining items of the round were skipped, and `cancel-stage-main` and `cancel-stage-beforeEnd` were recorded with `error at <event name>`. An item that always failed (for example a broken source file) kept blocking all items after it in every round.
+- **Now**: the other items are still processed. The failed item records its `error` event as before (with the original error message) and is listed in `failed`. When at least one item failed, one `warn` event `fail-items-stage-main` (`{ numFail, items, msg: 'some items failed' }`) is recorded after the items (`srLog.warn`, which was not used before, is now called). Item failures no longer record `cancel-stage-main` or `cancel-stage-beforeEnd`, and with `useShowLog` they no longer print `error occurred, task canceled`. A failed item is not recorded in the task state, so it is retried in the next round as long as `funGetCurrent` does not report it as done.
+- **Unchanged**: an error of `funAfterStart`, `funGetNew`, `funGetCurrent` or of the comparison still cancels the round before any item is processed.
+- **New**: `funBeforeEnd` receives the result of the round, and the `end` listeners receive their own copy of the same content:
+
+```alias
+{
+    success: { add: [], modify: [], remove: [] }, //ids (values of keyId) processed successfully
+    failed: [ //failed items
+        { id: '114116', mode: 'add', event: 'proc-add-callfun-add', msg: 'funAdd failed' },
+    ],
+    msgCancel: '', //why no item was processed in this round (e.g. 'no data', 'no difference'), otherwise ''
+}
+```
+
+`msg` is one of `funAdd failed`, `funModify failed`, `funRemove failed` or `failed to update task state` (the original error message is not included).
+
+- **Migration**: treat an item as done only when it is in `success` (for example, in `funBeforeEnd` keep or move only the data of successful ids; an item that is not listed is not done). `funAdd`, `funModify` and `funRemove` must be safe to call again, because a failed item is retried. A function passed as `funBeforeEnd` now receives an argument. If something relied on the later items not being processed after a failure, check `failed` in your own functions.
+
 ### `funGetNew` and `funGetCurrent` must return an array
 Applies to the release after 1.0.51.
 

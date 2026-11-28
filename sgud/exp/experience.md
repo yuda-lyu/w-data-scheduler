@@ -2,6 +2,16 @@
 
 > 執行時之累積經驗,留給後續嘗試、執行、判斷.最新在前.
 
+## 2026-11-28 逐項處理單項失敗不中止本輪(R-03,Gitea #216 §2)
+
+- **逐項回呼不得向 `pmSeries` 拋錯**:`pmSeries` 遇 reject 即停,其後各項靜默略過(且被 `stageMain().catch(() => {})` 吞掉).紀錄通道(srLog、change 監聽函數、console)同步拋錯亦同,逐項階段之紀錄須隔離.
+- **彙總 warn 事件不需另包隔離**:其後只剩 `return null`,呼叫端已 `.catch` 吞錯,包與不包行為相同(變異存活,判等價後移除包裝).
+- **造出「任務狀態更新失敗」之法**:資料含 BigInt 於比對(`ltdtDiffByKey` 內 `JSON.stringify`)即拋,不能放在 `funGetNew`;改由 `funAdd`／`funModify` 改動所收物件(加 BigInt),使其後 `JSON.stringify(v)` 拋錯.刪除側以防抖下該 id 之刪除 tag 路徑先建成資料夾(寫檔 EISDIR).
+- **本套件察覺不到任務狀態寫檔失敗**:wsemi `fsTaskCp` 之寫檔包在 try/catch 內,寫不進去不拋錯,該項仍列 `success`.
+- **刪除防抖之補掃(`coreRetake`)仍是遇錯即停**:任一 tag 檔內容不可解析(`JSON.parse` 拋錯)使其後 tag 每輪不處理;非 add／modify／remove 之逐項處理,本輪未改(讀碼推得,未實跑).
+- **下游影響實測**:以暫存複本(只複製檔案、自建 `node_modules/w-data-scheduler`)跑直接使用本套件之下游套件測試,修前版全綠、修後版其 srLog 測試 5 案因斷言舊事件序列(`cancel-stage-main`／`cancel-stage-beforeEnd`)而紅;下游程式碼沒有任何一處依賴「遇錯即停」.
+- **行尾**:`src/`、`test/` 之 `.mjs` 與 `sgud/` 在工作樹為 LF、README 為 CRLF;以 Git Bash `grep -c $'\r'` 量行尾會誤判(全部行都符合),改以位元組層計數.
+
 ## 2026-11-26 wsemi 1.9.80 列舉函數第 2 參數改為 opt(R-02)
 
 - **行為層分不出第 1 層與窮舉時,以 I/O 為可觀察量**:`coreRetake` 掃的是平放 tag 之資料夾,子層之檔名不對應任何 tag,故第 1 層與窮舉之補掃結果(釋放哪些 tag、發哪些事件)完全相同,既有 `unit-timer`(走完整防抖流程)兩者皆綠.改以 `fs.readdirSync` 之呼叫路徑區分:wsemi 以 Node 內建 `fs` 物件注入,測試端 `import fs from 'fs'` 為同一物件,暫時換掉 `fs.readdirSync`(記錄路徑後轉呼叫原函數,`finally` 還原)即可,不必替身化 `fsTreeFolder`.另加「spy 自檢」案:同一個 spy 對 wsemi `fsTreeFolder` 之窮舉與 `{ levelLimit: 1 }` 各量一次,證明該可觀察量有鑑別力.
